@@ -130,7 +130,7 @@ void scaffoldControlLogic()
 {
   Destination d = destinations.get(trialIndex);
 
-  float offset = d.z / 2 + inchToPix(.18f);
+  float offset = d.z * 0.75;
 
   float ccwX = d.x - offset;
   float ccwY = d.y - offset;
@@ -144,21 +144,40 @@ void scaffoldControlLogic()
   float plusX = d.x + offset;
   float plusY = d.y + offset;
 
-  text("CCW", ccwX, ccwY);
+  float boxW = constrain(d.z * 0.45, 40, 90);
+  float boxH = constrain(d.z * 0.28, 25, 60);
+  
+  textSize(constrain(d.z * 0.18, 12, 26));
+
+  rectMode(CENTER);
+  stroke(255);
+  strokeWeight(2);
+  fill(40);
+  rect(ccwX, ccwY, boxW, boxH);
+  rect(cwX, cwY, boxW, boxH);
+  rect(minusX, minusY, boxW, boxH);
+  rect(plusX, plusY, boxW, boxH);
+
+  fill(255);
+  textSize(d.z*0.18);
+  text("CCW", ccwX, ccwY + 5);
+  text("CW", cwX, cwY + 5);
+  text("-", minusX, minusY + 5);
+  text("+", plusX, plusY + 5);
+
   if (mousePressed && dist(ccwX, ccwY, mouseX, mouseY) < inchToPix(.35f))
     logoRotation--;
 
-  text("CW", cwX, cwY);
   if (mousePressed && dist(cwX, cwY, mouseX, mouseY) < inchToPix(.35f))
     logoRotation++;
 
-  text("-", minusX, minusY);
   if (mousePressed && dist(minusX, minusY, mouseX, mouseY) < inchToPix(.35f))
     logoZ = constrain(logoZ - inchToPix(.02f), .01, inchToPix(4f));
 
-  text("+", plusX, plusY);
   if (mousePressed && dist(plusX, plusY, mouseX, mouseY) < inchToPix(.35f))
     logoZ = constrain(logoZ + inchToPix(.02f), .01, inchToPix(4f));
+
+  noStroke();
 }
 
 boolean mouseOverLogo()
