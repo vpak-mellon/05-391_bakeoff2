@@ -31,6 +31,9 @@ boolean resizing = false;
 float resizeSens = 1.3;
 float rotateSens = 1;
 
+// --- Sound ---:
+SoundFile correct;
+
 private class Destination
 {
   float x = 0;
@@ -50,6 +53,9 @@ void setup() {
 
   //don't change this!
   border = inchToPix(2f); //padding of 1.0 inches
+  
+  // Load sound:
+  correct = new SoundFile(this, "correct.mp3");
 
   println("creating "+trialCount + " targets");
   for (int i=0; i<trialCount; i++) //don't change this!
@@ -200,6 +206,9 @@ void mouseDragged() {
     // resize
     logoZ = dist(mouseX, mouseY, logoX, logoY) * resizeSens; 
   }
+  if (checkForSuccess()) {
+    correct.play();
+  }
 }
 
 void mouseReleased()
@@ -240,7 +249,7 @@ public boolean checkForSuccess()
   //println("Close Enough Rotation: " + closeRotation + " (rot dist="+calculateDifferenceBetweenAngles(d.rotation, logoRotation)+")");
   //println("Close Enough Z: " +  closeZ + " (logo Z = " + d.z + ", destination Z = " + logoZ +")");
   //println("Close enough all: " + (closeDist && closeRotation && closeZ));
-
+  
   return closeDist && closeRotation && closeZ;
 }
 
