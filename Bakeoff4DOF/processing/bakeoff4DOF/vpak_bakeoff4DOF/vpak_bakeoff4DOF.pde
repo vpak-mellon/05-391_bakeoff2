@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.Collections;
+import processing.sound.*;
 
 //these are variables you should probably leave alone
 int index = 0; //starts at zero-ith trial
@@ -22,8 +23,13 @@ float logoY = 500;
 float logoZ = 50f;
 float logoRotation = 0;
 
-// Drag logic:
+// --- Drag logic ---:
+// Variables to track drag type
 boolean dragging = false;
+boolean resizing = false;
+// Resize and rotation sensitivity
+float resizeSens = 1.3;
+float rotateSens = 1;
 
 private class Destination
 {
@@ -167,6 +173,8 @@ void mousePressed()
   
   if (mouseInRect()) { // If mouse pressed inside logo, drag logo
     dragging = true;
+  } else if (mouseAroundRect()) {
+    resizing = true;
   }
 }
 
@@ -184,14 +192,22 @@ void mouseDragged() {
   if (dragging) { // If logo is being dragged, update logoX, logoY to mouseX, mouseY
     logoX = mouseX;
     logoY = mouseY;
+  } else if (resizing) {
+    // rotate
+    float dx = (mouseX - logoX) * rotateSens;
+    float dy = (mouseY - logoY) * rotateSens;
+    logoRotation = degrees(atan2(dy, dx));
+    // resize
+    logoZ = dist(mouseX, mouseY, logoX, logoY) * resizeSens; 
   }
 }
 
 void mouseReleased()
 {
   //check to see if user clicked middle of screen within 3 inches and not dragging or resizing, which this code uses as a submit button
-  if (dist(width/2, height/2, mouseX, mouseY)<inchToPix(3f) && dragging == false)
+  if (dist(width/2, height/2, mouseX, mouseY)<inchToPix(3f) && dragging == false && resizing == false)
   {
+    println("moving on");
     if (userDone==false && !checkForSuccess())
       errorCount++;
 
@@ -206,6 +222,9 @@ void mouseReleased()
   
   if (dragging) {
     dragging = false;
+  }
+  if (resizing) {
+    resizing = false;
   }
 }
 
@@ -241,7 +260,7 @@ boolean mouseInRect() {
 }
 
 boolean mouseAroundRect() {
-  return (dist(logoX, logoY, mouseX, mouseY)<((logoZ/2)+15) && !mouseInRect());
+  return (dist(logoX, logoY, mouseX, mouseY)<((logoZ/2)+30) && !mouseInRect());
 }
 
 //utility function to convert inches into pixels based on screen PPI
