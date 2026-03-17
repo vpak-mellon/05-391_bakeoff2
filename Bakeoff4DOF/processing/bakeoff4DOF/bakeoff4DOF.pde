@@ -284,6 +284,32 @@ void mousePressed() {
   drag_motion();
 }
 
+// Change cursor based on available movements
+void mouseMoved() {
+  // Check if click is on the logo square
+  // We need to account for rotation, so transform mouse into logo's local space
+  float dx = mouseX - logoX;
+  float dy = mouseY - logoY;
+  float cosR = cos(radians(-logoRotation));
+  float sinR = sin(radians(-logoRotation));
+  float localX = dx * cosR - dy * sinR;
+  float localY = dx * sinR + dy * cosR;
+  
+  // Check rotation handle
+  float ringRadius = logoZ / 2 * sqrt(2) + 30;
+  float curAngle = radians(logoRotation);
+  float curX = logoX + cos(curAngle) * ringRadius;
+  float curY = logoY + sin(curAngle) * ringRadius;
+  
+  if (abs(localX) < logoZ / 2 && abs(localY) < logoZ / 2) { // in square
+    cursor(MOVE); // = can drag square
+  } else if (dist(mouseX, mouseY, curX, curY) < 20) { // in ring handle
+    cursor(HAND); // = can rotate by ring
+  } else {
+    cursor(ARROW); // = not able to drag or rotate
+  }
+}
+
 void mouseDragged() {
   if (rotatingByRing) {
     // Rotation from angle
