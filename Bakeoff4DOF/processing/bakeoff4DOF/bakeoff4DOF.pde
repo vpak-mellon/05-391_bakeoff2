@@ -16,6 +16,13 @@ boolean userDone = false; //is the user done
 final int screenPPI = 72; //what is the DPI of the screen you are using
 //you can test this by drawing a 72x72 pixel rectangle in code, and then confirming with a ruler it is 1x1 inch. 
 
+// DGUO3 NEW GLOBALs
+boolean dragging = false;
+float dragOffsetX = 0;
+float dragOffsetY = 0;
+boolean rotatingByRing = false;
+float pressX, pressY;
+
 //These variables are for my example design. Your input code should modify/replace these!
 float logoX = 500;
 float logoY = 500;
@@ -58,11 +65,81 @@ void setup() {
   Collections.shuffle(destinations); // randomize the order of the button; don't change this.
 }
 
+void is_correct_state() {
+  if (!userDone && trialIndex < trialCount) {
+    Destination d = destinations.get(trialIndex);
+    boolean closeDist = dist(d.x, d.y, logoX, logoY) < inchToPix(.05f);
+    boolean closeRotation = calculateDifferenceBetweenAngles(d.rotation, logoRotation) <= 5;
+    boolean closeZ = abs(d.z - logoZ) < inchToPix(.1f);
+    
+    if (closeDist && closeRotation && closeZ)
+      background(0, 255, 255); // neon cyan - all correct
+    else if (closeRotation && closeZ)
+      background(255, 0, 255); // neon pink - rotation + size correct
+    else
+      background(40);
+  }
+}
 
+float angleDifference(float current, float target) {
+  float diff = (target - current) % 90;
+  if (diff < -45) diff += 90;
+  if (diff > 45) diff -= 90;
+  return diff;
+}
+
+void rotation_ring() {
+  if (!userDone && trialIndex < trialCount) {
+    Destination d = destinations.get(trialIndex);
+    float ringRadius = logoZ / 2 * sqrt(2) + 30;
+    
+    // Current size ring - neon yellow
+    noFill();
+    stroke(255, 255, 0);
+    strokeWeight(2);
+    ellipse(logoX, logoY, ringRadius * 2, ringRadius * 2);
+    
+    // Target size ring - neon green
+    float targetRingRadius = d.z / 2 * sqrt(2) + 30;
+    stroke(0, 255, 0);
+    strokeWeight(2);
+    ellipse(logoX, logoY, targetRingRadius * 2, targetRingRadius * 2);
+    
+    // Current rotation indicator (blue dot) - on yellow ring
+    float curAngle = radians(logoRotation);
+    float curX = logoX + cos(curAngle) * ringRadius;
+    float curY = logoY + sin(curAngle) * ringRadius;
+    fill(60, 60, 255);
+    noStroke();
+    ellipse(curX, curY, 20, 20);
+    
+    // Target rotation indicator (red dot) - on yellow ring
+    float diff = angleDifference(logoRotation, d.rotation);
+    float targetVisual = logoRotation + diff;
+    float targAngle = radians(targetVisual);
+    float targX = logoX + cos(targAngle) * ringRadius;
+    float targY = logoY + sin(targAngle) * ringRadius;
+    fill(255, 0, 0);
+    noStroke();
+    ellipse(targX, targY, 20, 20);
+    
+    // Draw arc between them
+    stroke(255, 255, 0, 100);
+    strokeWeight(3);
+    noFill();
+    if (diff > 0)
+      arc(logoX, logoY, ringRadius * 2, ringRadius * 2, curAngle, curAngle + radians(diff));
+    else
+      arc(logoX, logoY, ringRadius * 2, ringRadius * 2, curAngle + radians(diff), curAngle);
+  }
+}
 
 void draw() {
 
   background(40); //background is dark grey
+  
+  is_correct_state();
+  
   fill(200);
   noStroke();
   
@@ -89,8 +166,10 @@ void draw() {
     rotate(radians(d.rotation)); //rotate around the origin of the Ddestination trial
     noFill();
     strokeWeight(3f);
-    if (trialIndex==i)
-      stroke(255, 0, 0, 192); //set color to semi translucent
+    if (trialIndex==i) {
+      stroke(255, 0, 0); //set color to semi translucent
+      strokeWeight(5f);
+    }
     else
       stroke(128, 128, 128, 128); //set color to semi translucent
     rect(0, 0, d.z, d.z);
@@ -102,14 +181,25 @@ void draw() {
   translate(logoX, logoY); //translate draw center to the center oft he logo square
   rotate(radians(logoRotation)); //rotate using the logo square as the origin
   noStroke();
-  fill(60, 60, 192, 192);
+  fill(60, 60, 192);
   rect(0, 0, logoZ, logoZ);
   popMatrix();
+  
+  // rotation ring
+  rotation_ring();
 
   //===========DRAW EXAMPLE CONTROLS=================
   fill(255);
   scaffoldControlLogic(); //you are going to want to replace this!
   text("Trial " + (trialIndex+1) + " of " +trialCount, width/2, inchToPix(.8f));
+  
+  if (!userDone && trialIndex < trialCount) {
+    Destination d = destinations.get(trialIndex);
+    stroke(255, 255, 0, 128); // semi-transparent yellow
+    strokeWeight(2);
+    line(logoX, logoY, d.x, d.y);
+    noStroke();
+  }
 }
 
 //my example design for control, which is terrible
@@ -153,27 +243,78 @@ void scaffoldControlLogic()
     logoY+=inchToPix(.02f);
 }
 
-void mousePressed()
-{
-  if (startTime == 0) //start time on the instant of the first user click
-  {
-    startTime = millis();
-    println("time started!");
+void drag_motion() {
+  // Check if click is on the logo square
+  // We need to account for rotation, so transform mouse into logo's local space
+  float dx = mouseX - logoX;
+  float dy = mouseY - logoY;
+  float cosR = cos(radians(-logoRotation));
+  float sinR = sin(radians(-logoRotation));
+  float localX = dx * cosR - dy * sinR;
+  float localY = dx * sinR + dy * cosR;
+  
+  if (abs(localX) < logoZ / 2 && abs(localY) < logoZ / 2) {
+    dragging = true;
+    dragOffsetX = logoX - mouseX;
+    dragOffsetY = logoY - mouseY;
   }
 }
 
-void mouseReleased()
-{
-  //check to see if user clicked middle of screen within 3 inches, which this code uses as a submit button
-  if (dist(width/2, height/2, mouseX, mouseY)<inchToPix(3f))
-  {
-    if (userDone==false && !checkForSuccess())
+
+void mousePressed() {
+  if (startTime == 0) {
+    startTime = millis();
+    println("time started!");
+  }
+  pressX = mouseX;
+  pressY = mouseY;
+  
+  if (!userDone && trialIndex < trialCount) {
+    // Check rotation handle
+    float ringRadius = logoZ / 2 * sqrt(2) + 30;
+    float curAngle = radians(logoRotation);
+    float curX = logoX + cos(curAngle) * ringRadius;
+    float curY = logoY + sin(curAngle) * ringRadius;
+    if (dist(mouseX, mouseY, curX, curY) < 20) {
+      rotatingByRing = true;
+      return;
+    }
+  }
+  
+  drag_motion();
+}
+
+void mouseDragged() {
+  if (rotatingByRing) {
+    // Rotation from angle
+    float angle = atan2(mouseY - logoY, mouseX - logoX);
+    logoRotation = degrees(angle);
+    
+    // Size from distance - map mouse distance to logoZ
+    // Target green ring is at: d.z / 2 * sqrt(2) + 30
+    // When mouse is ON the green ring, logoZ should equal d.z
+    Destination d = destinations.get(trialIndex);
+    float mouseDist = dist(mouseX, mouseY, logoX, logoY);
+    float newZ = (mouseDist - 30) * 2 / sqrt(2);
+    logoZ = constrain(newZ, .01, inchToPix(4f));
+  } else if (dragging) {
+    logoX = mouseX + dragOffsetX;
+    logoY = mouseY + dragOffsetY;
+  }
+}
+
+void mouseReleased() {
+  boolean wasInteracting = dragging || rotatingByRing;
+  boolean didMove = dist(pressX, pressY, mouseX, mouseY) > 3; // tiny threshold
+  dragging = false;
+  rotatingByRing = false;
+  
+  // Submit if it was a click (not a drag) anywhere
+  if (!didMove) {
+    if (userDone == false && !checkForSuccess())
       errorCount++;
-
-    trialIndex++; //and move on to next trial
-
-    if (trialIndex==trialCount && userDone==false)
-    {
+    trialIndex++;
+    if (trialIndex == trialCount && userDone == false) {
       userDone = true;
       finishTime = millis();
     }
