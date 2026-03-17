@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.Collections;
+import processing.sound.*;
 
 //these are variables you should probably leave alone
 int index = 0; //starts at zero-ith trial
@@ -22,6 +23,9 @@ float dragOffsetX = 0;
 float dragOffsetY = 0;
 boolean rotatingByRing = false;
 float pressX, pressY;
+
+// --- Sound ---:
+SoundFile correct;
 
 //These variables are for my example design. Your input code should modify/replace these!
 float logoX = 500;
@@ -48,6 +52,9 @@ void setup() {
   
   //don't change this! 
   border = inchToPix(2f); //padding of 1.0 inches
+  
+  // Load sound:
+  correct = new SoundFile(this, "correct.mp3");
 
   println("creating "+trialCount + " targets");
   for (int i=0; i<trialCount; i++) //don't change this! 
@@ -326,6 +333,10 @@ void mouseDragged() {
   } else if (dragging) {
     logoX = mouseX + dragOffsetX;
     logoY = mouseY + dragOffsetY;
+  }
+  
+  if (checkForSuccess()) {
+    correct.play(); // play sound when correct position
   }
 }
 
