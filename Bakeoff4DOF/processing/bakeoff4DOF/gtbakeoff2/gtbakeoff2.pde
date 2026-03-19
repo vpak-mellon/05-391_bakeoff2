@@ -16,18 +16,24 @@ boolean userDone = false; //is the user done
 final int screenPPI = 72; //what is the DPI of the screen you are using
 //you can test this by drawing a 72x72 pixel rectangle in code, and then confirming with a ruler it is 1x1 inch. 
 
+// new globals
+boolean dragging = false;
+float dragOffsetX = 0;
+float dragOffsetY = 0;
+boolean rotatingByRing = false;
+float pressX, pressY;
+boolean resizing = false;
+int activeHandle = -1;
+float startMouseAngle = 0;
+float startLogoRotation = 0;
+float startMouseDist = 0;
+float startLogoZ = 0;
+
 //These variables are for my example design. Your input code should modify/replace these!
 float logoX = 500;
 float logoY = 500;
 float logoZ = 50f;
 float logoRotation = 0;
-
-boolean draggingLogo = false;
-float dragOffsetX = 0;
-float dragOffsetY = 0;
-
-int lastReleaseTime = 0;
-int doubleClickThreshold = 300; // milliseconds
 
 private class Destination
 {
@@ -65,11 +71,81 @@ void setup() {
   Collections.shuffle(destinations); // randomize the order of the button; don't change this.
 }
 
+void is_correct_state() {
+  if (!userDone && trialIndex < trialCount) {
+    Destination d = destinations.get(trialIndex);
+    boolean closeDist = dist(d.x, d.y, logoX, logoY) < inchToPix(.05f);
+    boolean closeRotation = calculateDifferenceBetweenAngles(d.rotation, logoRotation) <= 5;
+    boolean closeZ = abs(d.z - logoZ) < inchToPix(.1f);
+    
+    if (closeDist && closeRotation && closeZ)
+      background(0, 180, 120);
+    else if (closeRotation && closeZ)
+      background(255, 182, 193); // neon pink - rotation + size correct
+    else
+      background(40);
+  }
+}
 
+float angleDifference(float current, float target) {
+  float diff = (target - current) % 90;
+  if (diff < -45) diff += 90;
+  if (diff > 45) diff -= 90;
+  return diff;
+}
+
+void rotation_ring() {
+  if (!userDone && trialIndex < trialCount) {
+    Destination d = destinations.get(trialIndex);
+    float ringRadius = logoZ / 2 * sqrt(2) + 30;
+    
+    // Current size ring - neon yellow
+    noFill();
+    stroke(255, 255, 0);
+    strokeWeight(2);
+    ellipse(logoX, logoY, ringRadius * 2, ringRadius * 2);
+    
+    // Target size ring - neon green
+    float targetRingRadius = d.z / 2 * sqrt(2) + 30;
+    stroke(0, 255, 0);
+    strokeWeight(2);
+    ellipse(logoX, logoY, targetRingRadius * 2, targetRingRadius * 2);
+    
+    // Current rotation indicator (blue dot) - on yellow ring
+    float curAngle = radians(logoRotation);
+    float curX = logoX + cos(curAngle) * ringRadius;
+    float curY = logoY + sin(curAngle) * ringRadius;
+    fill(60, 60, 255);
+    noStroke();
+    ellipse(curX, curY, 20, 20);
+    
+    // Target rotation indicator (red dot) - on yellow ring
+    float diff = angleDifference(logoRotation, d.rotation);
+    float targetVisual = logoRotation + diff;
+    float targAngle = radians(targetVisual);
+    float targX = logoX + cos(targAngle) * ringRadius;
+    float targY = logoY + sin(targAngle) * ringRadius;
+    fill(255, 0, 0);
+    noStroke();
+    ellipse(targX, targY, 20, 20);
+    
+    // Draw arc between them
+    stroke(255, 255, 0, 100);
+    strokeWeight(3);
+    noFill();
+    if (diff > 0)
+      arc(logoX, logoY, ringRadius * 2, ringRadius * 2, curAngle, curAngle + radians(diff));
+    else
+      arc(logoX, logoY, ringRadius * 2, ringRadius * 2, curAngle + radians(diff), curAngle);
+  }
+}
 
 void draw() {
 
   background(40); //background is dark grey
+  
+  is_correct_state();
+  
   fill(200);
   noStroke();
   
@@ -96,166 +172,191 @@ void draw() {
     rotate(radians(d.rotation)); //rotate around the origin of the Ddestination trial
     noFill();
     strokeWeight(3f);
-    if (trialIndex==i)
-      stroke(255, 0, 0, 192); //set color to semi translucent
+    if (trialIndex==i) {
+      stroke(255, 0, 0); //set color to semi translucent
+      strokeWeight(5f);
+    }
     else
       stroke(128, 128, 128, 128); //set color to semi translucent
     rect(0, 0, d.z, d.z);
+    if (trialIndex==i) {
+      noStroke();
+      fill(255);
+      ellipse(0, 0, 14, 14);
+    }
     popMatrix();
   }
 
   //===========DRAW LOGO SQUARE=================
   pushMatrix();
-  translate(logoX, logoY); //translate draw center to the center oft he logo square
-  rotate(radians(logoRotation)); //rotate using the logo square as the origin
+  translate(logoX, logoY);
+  rotate(radians(logoRotation));
   noStroke();
-  fill(60, 60, 192, 192);
+  fill(60, 60, 192, 120);
   rect(0, 0, logoZ, logoZ);
+  
+  fill(255);
+  ellipse(0, 0, 14, 14);
+  
+  float half = logoZ / 2;
+  fill(0);
+  ellipse(-half, -half, 12, 12);
+  ellipse( half, -half, 12, 12);
+  ellipse(-half,  half, 12, 12);
+  ellipse( half,  half, 12, 12);
+  
   popMatrix();
 
   //===========DRAW EXAMPLE CONTROLS=================
   fill(255);
-
-  if (draggingLogo) {
-    logoX = mouseX - dragOffsetX;
-    logoY = mouseY - dragOffsetY;
-  }
-
   scaffoldControlLogic(); //you are going to want to replace this!
   text("Trial " + (trialIndex+1) + " of " +trialCount, width/2, inchToPix(.8f));
+  
+  if (!userDone && trialIndex < trialCount) {
+    Destination d = destinations.get(trialIndex);
+    stroke(255, 255, 0, 128); // semi-transparent yellow
+    strokeWeight(2);
+    line(logoX, logoY, d.x, d.y);
+    noStroke();
+  }
 }
 
 //my example design for control, which is terrible
 void scaffoldControlLogic()
 {
-  Destination d = destinations.get(trialIndex);
-
-  float offset = d.z * 0.75;
-
-  float ccwX = d.x - offset;
-  float ccwY = d.y - offset;
-
-  float cwX = d.x + offset;
-  float cwY = d.y - offset;
-
-  float minusX = d.x - offset;
-  float minusY = d.y + offset;
-
-  float plusX = d.x + offset;
-  float plusY = d.y + offset;
-
-  float boxW = constrain(d.z * 0.45, 40, 90);
-  float boxH = constrain(d.z * 0.28, 25, 60);
-  
-  textSize(constrain(d.z * 0.18, 12, 26));
-
-  rectMode(CENTER);
-  stroke(255);
-  strokeWeight(2);
-  fill(40);
-  rect(ccwX, ccwY, boxW, boxH);
-  rect(cwX, cwY, boxW, boxH);
-  rect(minusX, minusY, boxW, boxH);
-  rect(plusX, plusY, boxW, boxH);
-
-  fill(255);
-  textSize(d.z*0.18);
-  text("CCW", ccwX, ccwY + 5);
-  text("CW", cwX, cwY + 5);
-  text("-", minusX, minusY + 5);
-  text("+", plusX, plusY + 5);
-
-  if (mousePressed && dist(ccwX, ccwY, mouseX, mouseY) < inchToPix(.35f))
+  //upper left corner, rotate counterclockwise
+  text("CCW", inchToPix(.4f), inchToPix(.4f));
+  if (mousePressed && dist(0, 0, mouseX, mouseY)<inchToPix(.8f))
     logoRotation--;
 
-  if (mousePressed && dist(cwX, cwY, mouseX, mouseY) < inchToPix(.35f))
+  //upper right corner, rotate clockwise
+  text("CW", width-inchToPix(.4f), inchToPix(.4f));
+  if (mousePressed && dist(width, 0, mouseX, mouseY)<inchToPix(.8f))
     logoRotation++;
 
-  if (mousePressed && dist(minusX, minusY, mouseX, mouseY) < inchToPix(.35f))
-    logoZ = constrain(logoZ - inchToPix(.02f), .01, inchToPix(4f));
+  //lower left corner, decrease Z
+  text("-", inchToPix(.4f), height-inchToPix(.4f));
+  if (mousePressed && dist(0, height, mouseX, mouseY)<inchToPix(.8f))
+    logoZ = constrain(logoZ-inchToPix(.02f), .01, inchToPix(4f)); //leave min and max alone!
 
-  if (mousePressed && dist(plusX, plusY, mouseX, mouseY) < inchToPix(.35f))
-    logoZ = constrain(logoZ + inchToPix(.02f), .01, inchToPix(4f));
+  //lower right corner, increase Z
+  text("+", width-inchToPix(.4f), height-inchToPix(.4f));
+  if (mousePressed && dist(width, height, mouseX, mouseY)<inchToPix(.8f))
+    logoZ = constrain(logoZ+inchToPix(.02f), .01, inchToPix(4f)); //leave min and max alone! 
 
-  noStroke();
+  //left middle, move left
+  text("left", inchToPix(.4f), height/2);
+  if (mousePressed && dist(0, height/2, mouseX, mouseY)<inchToPix(.8f))
+    logoX-=inchToPix(.02f);
+
+  text("right", width-inchToPix(.4f), height/2);
+  if (mousePressed && dist(width, height/2, mouseX, mouseY)<inchToPix(.8f))
+    logoX+=inchToPix(.02f);
+
+  text("up", width/2, inchToPix(.4f));
+  if (mousePressed && dist(width/2, 0, mouseX, mouseY)<inchToPix(.8f))
+    logoY-=inchToPix(.02f);
+
+  text("down", width/2, height-inchToPix(.4f));
+  if (mousePressed && dist(width/2, height, mouseX, mouseY)<inchToPix(.8f))
+    logoY+=inchToPix(.02f);
 }
 
-boolean mouseOverLogo()
-{
+void drag_motion() {
+  // Check if click is on the logo square
+  // We need to account for rotation, so transform mouse into logo's local space
+  float dx = mouseX - logoX;
+  float dy = mouseY - logoY;
+  float cosR = cos(radians(-logoRotation));
+  float sinR = sin(radians(-logoRotation));
+  float localX = dx * cosR - dy * sinR;
+  float localY = dx * sinR + dy * cosR;
+  
+  if (abs(localX) < logoZ / 2 && abs(localY) < logoZ / 2) {
+    dragging = true;
+    dragOffsetX = logoX - mouseX;
+    dragOffsetY = logoY - mouseY;
+  }
+}
+
+int getHandleUnderMouse() {
   float dx = mouseX - logoX;
   float dy = mouseY - logoY;
 
-  float angle = radians(-logoRotation);
-  float localX = dx * cos(angle) - dy * sin(angle);
-  float localY = dx * sin(angle) + dy * cos(angle);
+  float cosR = cos(radians(-logoRotation));
+  float sinR = sin(radians(-logoRotation));
+  float localX = dx * cosR - dy * sinR;
+  float localY = dx * sinR + dy * cosR;
 
-  return abs(localX) <= logoZ / 2 && abs(localY) <= logoZ / 2;
+  float half = logoZ / 2;
+  float handleRadius = 10;
+
+  if (dist(localX, localY, -half, -half) < handleRadius) return 0;
+  if (dist(localX, localY,  half, -half) < handleRadius) return 1;
+  if (dist(localX, localY, -half,  half) < handleRadius) return 2;
+  if (dist(localX, localY,  half,  half) < handleRadius) return 3;
+
+  return -1;
 }
 
-boolean overControl()
-{
-  Destination d = destinations.get(trialIndex);
-
-  float offset = d.z / 2 + inchToPix(.13f);
-
-  float ccwX = d.x - offset;
-  float ccwY = d.y - offset;
-
-  float cwX = d.x + offset;
-  float cwY = d.y - offset;
-
-  float minusX = d.x - offset;
-  float minusY = d.y + offset;
-
-  float plusX = d.x + offset;
-  float plusY = d.y + offset;
-
-  return dist(ccwX, ccwY, mouseX, mouseY) < inchToPix(.35f) ||
-         dist(cwX, cwY, mouseX, mouseY) < inchToPix(.35f) ||
-         dist(minusX, minusY, mouseX, mouseY) < inchToPix(.35f) ||
-         dist(plusX, plusY, mouseX, mouseY) < inchToPix(.35f);
-}
-
-void mousePressed()
-{
-  if (startTime == 0) //start time on the instant of the first user click
-  {
+void mousePressed() {
+  if (startTime == 0) {
     startTime = millis();
     println("time started!");
   }
 
-  if (!overControl() && mouseOverLogo()) {
-    draggingLogo = true;
-    dragOffsetX = mouseX - logoX;
-    dragOffsetY = mouseY - logoY;
-  }
-}
+  pressX = mouseX;
+  pressY = mouseY;
 
-void mouseReleased()
-{
-  if (draggingLogo) {
-    draggingLogo = false;
+  activeHandle = getHandleUnderMouse();
+  if (activeHandle != -1) {
+    resizing = true;
+
+    float dx = mouseX - logoX;
+    float dy = mouseY - logoY;
+    startMouseAngle = degrees(atan2(dy, dx));
+    startLogoRotation = logoRotation;
+    startMouseDist = dist(mouseX, mouseY, logoX, logoY);
+    startLogoZ = logoZ;
     return;
   }
 
-  if (!overControl() && !mouseOverLogo()) {
-    int now = millis();
+  drag_motion();
+}
 
-    if (now - lastReleaseTime < doubleClickThreshold) {
-      if (userDone==false && !checkForSuccess())
-        errorCount++;
+void mouseDragged() {
+  if (resizing) {
+    float dx = mouseX - logoX;
+    float dy = mouseY - logoY;
 
-      trialIndex++; //and move on to next trial
+    float currentAngle = degrees(atan2(dy, dx));
+    float angleDelta = currentAngle - startMouseAngle;
+    logoRotation = startLogoRotation + angleDelta;
 
-      if (trialIndex==trialCount && userDone==false)
-      {
-        userDone = true;
-        finishTime = millis();
-      }
+    float currentDist = dist(mouseX, mouseY, logoX, logoY);
+    float scaleFactor = currentDist / startMouseDist;
+    logoZ = constrain(startLogoZ * scaleFactor, .01, inchToPix(4f));
+  } 
+  else if (dragging) {
+    logoX = mouseX + dragOffsetX;
+    logoY = mouseY + dragOffsetY;
+  }
+}
 
-      lastReleaseTime = 0;
-    } else {
-      lastReleaseTime = now;
+void mouseReleased() {
+  boolean didMove = dist(pressX, pressY, mouseX, mouseY) > 3;
+
+  dragging = false;
+  resizing = false;
+  activeHandle = -1;
+
+  if (!didMove) {
+    if (userDone == false && !checkForSuccess())
+      errorCount++;
+    trialIndex++;
+    if (trialIndex == trialCount && userDone == false) {
+      userDone = true;
+      finishTime = millis();
     }
   }
 }
