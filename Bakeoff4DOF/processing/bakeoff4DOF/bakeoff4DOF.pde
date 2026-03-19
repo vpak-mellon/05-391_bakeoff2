@@ -120,15 +120,18 @@ void rotation_ring() {
     noStroke();
     ellipse(curX, curY, 20, 20);
     
-    // Target rotation indicator (red dot) - on yellow ring
+    // Target rotation indicator (red X) - on green ring
     float diff = angleDifference(logoRotation, d.rotation);
     float targetVisual = logoRotation + diff;
     float targAngle = radians(targetVisual);
-    float targX = logoX + cos(targAngle) * ringRadius;
-    float targY = logoY + sin(targAngle) * ringRadius;
-    fill(255, 0, 0);
+    float targX = logoX + cos(targAngle) * targetRingRadius;
+    float targY = logoY + sin(targAngle) * targetRingRadius;
+    stroke(255, 0, 0);
+    strokeWeight(5);
+    float xSize = 12;
+    line(targX - xSize, targY - xSize, targX + xSize, targY + xSize);
+    line(targX - xSize, targY + xSize, targX + xSize, targY - xSize);
     noStroke();
-    ellipse(targX, targY, 20, 20);
     
     // Draw arc between them
     stroke(255, 255, 0, 100);
@@ -149,9 +152,6 @@ void draw() {
   
   fill(200);
   noStroke();
-  
-  //Test square in the top left corner. Should be 1 x 1 inch
-  //rect(inchToPix(0.5), inchToPix(0.5), inchToPix(1), inchToPix(1));
 
   //shouldn't really modify this printout code unless there is a really good reason to
   if (userDone)
@@ -174,22 +174,29 @@ void draw() {
     noFill();
     strokeWeight(3f);
     if (trialIndex==i) {
-      stroke(255, 0, 0); //set color to semi translucent
+      stroke(255, 0, 0);
       strokeWeight(5f);
+      rect(0, 0, d.z, d.z);
     }
-    else
-      stroke(128, 128, 128, 128); //set color to semi translucent
-    rect(0, 0, d.z, d.z);
+    else {
+      stroke(128, 128, 128, 128);
+      rect(0, 0, d.z, d.z);
+    }
     popMatrix();
   }
 
   //===========DRAW LOGO SQUARE=================
   pushMatrix();
-  translate(logoX, logoY); //translate draw center to the center oft he logo square
-  rotate(radians(logoRotation)); //rotate using the logo square as the origin
+  translate(logoX, logoY);
+  rotate(radians(logoRotation));
   noStroke();
   fill(60, 60, 192);
   rect(0, 0, logoZ, logoZ);
+  // Light boundary showing draggable area
+  stroke(255, 255, 255, 60);
+  strokeWeight(1);
+  noFill();
+  rect(0, 0, logoZ + 20, logoZ + 20);
   popMatrix();
   
   // rotation ring
@@ -197,15 +204,27 @@ void draw() {
 
   //===========DRAW EXAMPLE CONTROLS=================
   fill(255);
-  scaffoldControlLogic(); //you are going to want to replace this!
+  scaffoldControlLogic();
   text("Trial " + (trialIndex+1) + " of " +trialCount, width/2, inchToPix(.8f));
   
   if (!userDone && trialIndex < trialCount) {
     Destination d = destinations.get(trialIndex);
-    stroke(255, 255, 0, 128); // semi-transparent yellow
-    strokeWeight(2);
+    stroke(255, 255, 0, 128);
+    strokeWeight(8);
     line(logoX, logoY, d.x, d.y);
     noStroke();
+  }
+
+  // Center dots - drawn last so always on top
+  if (!userDone && trialIndex < trialCount) {
+    Destination d = destinations.get(trialIndex);
+    fill(0, 255, 0);
+    noStroke();
+    ellipse(d.x, d.y, 20, 20);
+    
+    fill(255, 255, 0);
+    noStroke();
+    ellipse(logoX, logoY, 20, 20);
   }
 }
 
@@ -260,7 +279,7 @@ void drag_motion() {
   float localX = dx * cosR - dy * sinR;
   float localY = dx * sinR + dy * cosR;
   
-  if (abs(localX) < logoZ / 2 && abs(localY) < logoZ / 2) {
+  if (abs(localX) < logoZ / 2 + 10 && abs(localY) < logoZ / 2 + 10) {
     dragging = true;
     dragOffsetX = logoX - mouseX;
     dragOffsetY = logoY - mouseY;
@@ -308,7 +327,7 @@ void mouseMoved() {
   float curX = logoX + cos(curAngle) * ringRadius;
   float curY = logoY + sin(curAngle) * ringRadius;
   
-  if (abs(localX) < logoZ / 2 && abs(localY) < logoZ / 2) { // in square
+  if (abs(localX) < logoZ / 2 + 10 && abs(localY) < logoZ / 2 + 10) { // in square
     cursor(MOVE); // = can drag square
   } else if (dist(mouseX, mouseY, curX, curY) < 20) { // in ring handle
     cursor(HAND); // = can rotate by ring
