@@ -26,6 +26,7 @@ float pressX, pressY;
 
 // --- Sound ---:
 SoundFile correct;
+boolean canPlaySound;
 
 //These variables are for my example design. Your input code should modify/replace these!
 float logoX = 500;
@@ -55,6 +56,7 @@ void setup() {
   
   // Load sound:
   correct = new SoundFile(this, "correct.mp3");
+  canPlaySound = true;
 
   println("creating "+trialCount + " targets");
   for (int i=0; i<trialCount; i++) //don't change this! 
@@ -354,8 +356,13 @@ void mouseDragged() {
     logoY = mouseY + dragOffsetY;
   }
   
-  if (checkForSuccess()) {
+  if (checkForSuccess() && canPlaySound) {
     correct.play(); // play sound when correct position
+    canPlaySound = false;
+  }
+  
+  if (!checkForSuccess()) {
+    canPlaySound = true;
   }
 }
 
