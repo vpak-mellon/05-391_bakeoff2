@@ -13,6 +13,7 @@ float errorPenalty = 1.0f; //for every error, add this value to mean time
 int startTime = 0; // time starts when the first click is captured
 int finishTime = 0; //records the time of the final click
 boolean userDone = false; //is the user done
+float pulseTime = 0;
 
 final int screenPPI = 72; //what is the DPI of the screen you are using
 //you can test this by drawing a 72x72 pixel rectangle in code, and then confirming with a ruler it is 1x1 inch. 
@@ -118,8 +119,15 @@ void rotation_ring() {
     float curAngle = radians(logoRotation);
     float curX = logoX + cos(curAngle) * ringRadius;
     float curY = logoY + sin(curAngle) * ringRadius;
-    fill(60, 60, 255);
+
+    // pulsating halo
+    float haloSize = 34 + sin(pulseTime) * 6;
+    fill(200, 200, 200, 90);
     noStroke();
+    ellipse(curX, curY, haloSize, haloSize);
+    
+    // blue dot
+    fill(60, 60, 255);
     ellipse(curX, curY, 20, 20);
     
     // Target rotation indicator (red X) - on green ring
@@ -154,7 +162,7 @@ void rotation_ring() {
 void draw() {
 
   background(40); //background is dark grey
-  
+  pulseTime += 0.08;
   is_correct_state();
   
   fill(200);
