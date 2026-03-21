@@ -82,7 +82,7 @@ void is_correct_state() {
     boolean closeZ = abs(d.z - logoZ) < inchToPix(.1f);
     
     if (closeDist && closeRotation && closeZ)
-      background(0, 255, 255); // neon cyan - all correct
+      background(0, 255, 0); // neon green - all correct
     else if (closeRotation && closeZ)
       background(255, 0, 255); // neon pink - rotation + size correct
     else
@@ -129,8 +129,8 @@ void rotation_ring() {
     float targX = logoX + cos(targAngle) * targetRingRadius;
     float targY = logoY + sin(targAngle) * targetRingRadius;
     stroke(255, 0, 0);
-    strokeWeight(5);
-    float xSize = 12;
+    strokeWeight(3);
+    float xSize = 7;
     line(targX - xSize, targY - xSize, targX + xSize, targY + xSize);
     line(targX - xSize, targY + xSize, targX + xSize, targY - xSize);
     noStroke();
@@ -143,6 +143,11 @@ void rotation_ring() {
       arc(logoX, logoY, ringRadius * 2, ringRadius * 2, curAngle, curAngle + radians(diff));
     else
       arc(logoX, logoY, ringRadius * 2, ringRadius * 2, curAngle + radians(diff), curAngle);
+      
+    // Draw line from blue circle to red x
+    PVector blueCircleCenter = new PVector(curX, curY);
+    PVector redXCenter = new PVector(targX, targY);
+    drawArrow(blueCircleCenter, redXCenter);
   }
 }
 
@@ -288,6 +293,40 @@ void drag_motion() {
   }
 }
 
+// Draw a line + arrowhead. Pure drawing: does NOT affect clicking/hit-testing.
+void drawArrow(PVector a, PVector b) {
+  Destination d = destinations.get(trialIndex);
+  boolean closeRotation = calculateDifferenceBetweenAngles(d.rotation, logoRotation) <= 5;
+  boolean closeZ = abs(d.z - logoZ) < inchToPix(.1f);
+  if (closeRotation && closeZ) {
+    return;
+  }
+
+  stroke(255);
+  strokeWeight(2.5);
+  noFill();
+
+  PVector dir = PVector.sub(b, a);
+  float len = dir.mag();
+  if (len < 1e-6) return;
+  dir.normalize();
+
+  float headLen = 12;
+  float headWidth = 12;
+
+  PVector shaftEnd = PVector.sub(b, PVector.mult(dir, headLen));
+  line(a.x, a.y, shaftEnd.x, shaftEnd.y);
+
+  PVector perp = new PVector(-dir.y, dir.x);
+
+  PVector p1 = b.copy();
+  PVector p2 = PVector.add(shaftEnd, PVector.mult(perp,  headWidth * 0.5f));
+  PVector p3 = PVector.add(shaftEnd, PVector.mult(perp, -headWidth * 0.5f));
+
+  fill(255);
+  noStroke();
+  triangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+}
 
 void mousePressed() {
   if (startTime == 0) {
