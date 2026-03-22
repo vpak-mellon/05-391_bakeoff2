@@ -84,7 +84,7 @@ void is_correct_state() {
     
     if (closeDist && closeRotation && closeZ)
       background(0, 255, 0); // neon green - all correct
-    else if (closeRotation && closeZ)
+    else if ((closeRotation && closeZ) || closeDist)
       background(255, 0, 255); // neon pink - rotation + size correct
     else
       background(40);
